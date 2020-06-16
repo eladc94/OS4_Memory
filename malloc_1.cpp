@@ -1,4 +1,5 @@
-//
-// Created by student on 6/16/20.
-//
+#include <unistd.h>
 
+void* smalloc(size_t size){
+
+}
