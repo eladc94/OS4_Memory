@@ -1,11 +1,23 @@
 #include <unistd.h>
 
-struct MallocMetadata {
+
+
+typedef struct MallocMetadata_t {
     size_t size;
     bool is_free;
-    MallocMetadata* next;
-    MallocMetadata* prev;
-};
+    MallocMetadata_t* next;
+    MallocMetadata_t* prev;
+}*MallocMetadata;
+
+
+static MallocMetadata head;
+static size_t num_free_blocks;
+static size_t num_free_bytes;
+static size_t num_allocated_blocks;
+static size_t num_allocates_bytes;
+static size_t num_meta_data_bytes;
+static size_t size_meta_data;
+
 
 void* smalloc(size_t size){}
 void* scalloc(size_t num, size_t size){}
