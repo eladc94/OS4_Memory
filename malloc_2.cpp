@@ -28,7 +28,7 @@ void* smalloc(size_t size){
         return NULL;
     MallocMetadata metadata;
     if (head == NULL){
-        __allocate_new_block(size,NULL);
+        void* ptr = __allocate_new_block(size,NULL);
     }
     MallocMetadata current = head;
     MallocMetadata prev_meta_data = NULL;
@@ -41,7 +41,7 @@ void* smalloc(size_t size){
         assert((current->is_free)&&(current->size>=size));
         current->is_free=false;
         num_free_blocks--;
-        num_free_bytes-=size;
+        num_free_bytes-=current->size;
         assert(num_free_blocks>=0 && num_free_bytes >=0);
         return (void*)(current+1);
     }
@@ -77,7 +77,8 @@ void* srealloc(void* oldp, size_t size){
     if (NULL == new_ptr)
         return NULL;
     memcpy(new_ptr, oldp, md->size);
-    sfree(md);
+    sfree((void*)md);
+    return new_ptr;
 }
 
 size_t _size_meta_data(){
@@ -95,7 +96,8 @@ void* __allocate_new_block(size_t size, MallocMetadata prev_meta_data){
     metadata->is_free=false;
     metadata->next=NULL;
     metadata->prev=prev_meta_data;
-    head=metadata;
+    if(NULL == prev_meta_data)
+        head = metadata;
     num_allocated_blocks++;
     num_allocates_bytes+=size;
     num_meta_data_bytes+=_size_meta_data();
