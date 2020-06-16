@@ -80,6 +80,7 @@ void* __allocate_new_block(size_t size, MallocMetadata prev_meta_data){
     head=metadata;
     num_allocated_blocks++;
     num_allocates_bytes+=size;
+    //elad
     num_meta_data_bytes+=_size_meta_data();
     if(prev_meta_data != NULL){
         prev_meta_data->next = metadata;
