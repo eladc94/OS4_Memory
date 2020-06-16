@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <assert.h>
+#include <string.h>
 
 
 typedef struct MallocMetadata_t {
@@ -17,7 +18,7 @@ static size_t num_free_bytes = 0;
 static size_t num_allocated_blocks = 0;
 static size_t num_allocates_bytes = 0;
 static size_t num_meta_data_bytes = 0;
-
+static size_t size_meta_data = 0;
 
 size_t _size_meta_data();
 void* __allocate_new_block(size_t size,MallocMetadata prev);
@@ -48,7 +49,6 @@ void* smalloc(size_t size){
     return __allocate_new_block(size,prev_meta_data);
 }
 
-void* scalloc(size_t num, size_t size){}
 void sfree(void* p){
     MallocMetadata metadata=((MallocMetadata)p)-1;
     assert(!metadata->is_free);
@@ -56,12 +56,30 @@ void sfree(void* p){
     num_free_blocks++;
     num_free_bytes+=metadata->size;
 }
-void* srealloc(void* oldp, size_t size){}
-size_t _num_free_blocks(){}
-size_t _num_free_bytes(){}
-size_t _num_allocated_blocks(){}
-size_t _num_allocated_bytes(){}
-size_t _num_meta_data_bytes(){}
+
+void* scalloc(size_t num, size_t size){
+    void* new_ptr = smalloc(num*size);
+    if (NULL == new_ptr)
+        return NULL;
+    memset(new_ptr, 0, size);
+    return new_ptr;
+}
+
+void* srealloc(void* oldp, size_t size){
+    if (NULL == oldp)
+        return smalloc(size);
+    MallocMetadata md = (MallocMetadata)oldp-1;
+    if(md->size >= size){
+        md->is_free = false;
+        return oldp;
+    }
+    void* new_ptr = smalloc(size);
+    if (NULL == new_ptr)
+        return NULL;
+    memcpy(new_ptr, oldp, md->size);
+    sfree(md);
+}
+
 size_t _size_meta_data(){
     return sizeof(MallocMetadata_t);
 }
@@ -80,7 +98,6 @@ void* __allocate_new_block(size_t size, MallocMetadata prev_meta_data){
     head=metadata;
     num_allocated_blocks++;
     num_allocates_bytes+=size;
-    //elad veiza
     num_meta_data_bytes+=_size_meta_data();
     if(prev_meta_data != NULL){
         prev_meta_data->next = metadata;

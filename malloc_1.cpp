@@ -5,7 +5,7 @@ void* smalloc(size_t size){
     if (0 == size || size > MAXIMUM_SIZE)
         return NULL;
     void* address = sbrk(size);
-    if ((long)address == -1)
+    if (address == (void*)-1)
         return NULL;
     return address;
 }
