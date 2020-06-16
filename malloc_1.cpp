@@ -1,7 +1,8 @@
 #include <unistd.h>
+#define MAXIMUM_SIZE 100000000
 
 void* smalloc(size_t size){
-    if (0 == size || size > 100000000)
+    if (0 == size || size > MAXIMUM_SIZE)
         return NULL;
     void* address = sbrk(size);
     if ((long)address == -1)
