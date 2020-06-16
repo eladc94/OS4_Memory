@@ -10,13 +10,13 @@ typedef struct MallocMetadata_t {
 }*MallocMetadata;
 
 
-static MallocMetadata head;
-static size_t num_free_blocks;
-static size_t num_free_bytes;
-static size_t num_allocated_blocks;
-static size_t num_allocates_bytes;
-static size_t num_meta_data_bytes;
-static size_t size_meta_data;
+static MallocMetadata head = NULL;
+static size_t num_free_blocks = 0;
+static size_t num_free_bytes = 0;
+static size_t num_allocated_blocks = 0;
+static size_t num_allocates_bytes = 0;
+static size_t num_meta_data_bytes = 0;
+static size_t size_meta_data = 0;
 
 
 void* smalloc(size_t size){}
