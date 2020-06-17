@@ -3,6 +3,12 @@
 #include <string.h>
 #include "malloc.h"
 
+static MallocMetadata head = NULL;
+static size_t num_free_blocks = 0;
+static size_t num_free_bytes = 0;
+static size_t num_allocated_blocks = 0;
+static size_t num_allocated_bytes = 0;
+static size_t num_meta_data_bytes = 0;
 
 struct MallocMetadata_t {
     size_t size;
@@ -10,13 +16,6 @@ struct MallocMetadata_t {
     MallocMetadata_t* next;
     MallocMetadata_t* prev;
 };
-
-static MallocMetadata head = NULL;
-static size_t num_free_blocks = 0;
-static size_t num_free_bytes = 0;
-static size_t num_allocated_blocks = 0;
-static size_t num_allocated_bytes = 0;
-static size_t num_meta_data_bytes = 0;
 
 void* smalloc(size_t size) {
     if (size == 0 || size > MAX_SIZE)
@@ -96,6 +95,10 @@ void* allocate_new_block(size_t size, MallocMetadata prev){
         prev->next = metadata;
     }
     return (void*)(metadata+1);
+}
+
+void split_and_allocate_block(size_t size,MallocMetadata prev,MallocMetadata next){
+
 }
 
 size_t _num_free_blocks(){
