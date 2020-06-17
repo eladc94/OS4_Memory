@@ -98,7 +98,7 @@ void* allocate_new_block(size_t size, MallocMetadata prev){
 }
 
 void split_and_allocate_block(size_t size,MallocMetadata prev,MallocMetadata next){
-
+//elad
 }
 
 size_t _num_free_blocks(){
