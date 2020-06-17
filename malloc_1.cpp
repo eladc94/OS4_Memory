@@ -1,6 +1,6 @@
 #include <unistd.h>
 #define MAXIMUM_SIZE 100000000
-
+/*
 void* smalloc(size_t size){
     if (0 == size || size > MAXIMUM_SIZE)
         return NULL;
@@ -9,3 +9,4 @@ void* smalloc(size_t size){
         return NULL;
     return address;
 }
+*/

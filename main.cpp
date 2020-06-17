@@ -1,6 +1,6 @@
-#include <iostream>
+#include "malloc_2.cpp"
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
+    void* test = smalloc(100);
     return 0;
 }
