@@ -18,6 +18,8 @@ static size_t num_allocated_blocks = 0;
 static size_t num_allocated_bytes = 0;
 static size_t num_meta_data_bytes = 0;
 
+static void* allocate_new_block(size_t size, MallocMetadata prev);
+
 void* smalloc(size_t size) {
     if (size == 0 || size > MAX_SIZE)
         return NULL;

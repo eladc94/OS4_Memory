@@ -14,5 +14,4 @@ size_t _num_allocated_blocks();
 size_t _num_allocated_bytes();
 size_t _num_metadata_bytes();
 size_t _size_meta_data();
-void* allocate_new_block(size_t size, MallocMetadata prev);
 #endif //OS4_MEMORY_MALLOC_H
