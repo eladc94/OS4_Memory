@@ -15,6 +15,7 @@ static size_t num_meta_data_bytes = 0;
 static void* allocate_new_block(size_t size, MallocMetadata prev);
 static void* split_block(MallocMetadata current,size_t size);
 static void coalesce_blocks(MallocMetadata left,MallocMetadata right);
+static void* change_wilderness_block(size_t size, MallocMetadata prev);
 
 struct MallocMetadata_t {
     size_t size;
@@ -26,6 +27,7 @@ struct MallocMetadata_t {
 void* smalloc(size_t size) {
     if (size == 0 || size > MAX_SIZE)
         return NULL;
+    MallocMetadata metadata;
     if (head == NULL) {
         return allocate_new_block(size, NULL);
     }
@@ -47,6 +49,8 @@ void* smalloc(size_t size) {
         return (void *) (current + 1);
     }
     assert(current == NULL);
+    if (prev_meta_data->is_free)
+        return change_wilderness_block(size, prev_meta_data);
     return allocate_new_block(size, prev_meta_data);
 }
 
@@ -64,19 +68,48 @@ void* srealloc(void* oldp, size_t size){
     MallocMetadata md = (MallocMetadata)oldp-1;
     if(md->size >= size){
         md->is_free = false;
-        return oldp;
+        return split_block(md, size);
     }
-    void* new_ptr = smalloc(size);
-    if (NULL == new_ptr)
-        return NULL;
-    memcpy(new_ptr, oldp, md->size);
-    sfree(oldp);
-    return new_ptr;
+    else if(md->next == NULL){
+        return change_wilderness_block(size, md);
+    }
+    else if(md->prev != NULL && md->prev->is_free && (md->prev->size+md->size+METADATA_SIZE >= size)){
+        MallocMetadata prev = md->prev;
+        prev->next = md->next;
+        prev->is_free = false;
+        prev->size += md->size+METADATA_SIZE;
+        memcpy(prev+1, md+1, md->size);
+        return split_block(prev, size);
+    }
+    else if(md->next != NULL && md->next->is_free && (md->next->size+md->size+METADATA_SIZE >= size)){
+        MallocMetadata next = md->next;
+        md->next = md->next->next;
+        md->size += next->size+METADATA_SIZE;
+        md->is_free = false;
+        return split_block(md, size);
+    }
+    else if(md->prev != NULL && md->next != NULL && md->prev->is_free && md->next->is_free &&
+            (md->prev->size+md->size+md->next->size+2*METADATA_SIZE >= size)){
+        MallocMetadata next = md->next;
+        MallocMetadata prev = md->prev;
+        prev->next = next->next;
+        prev->is_free = false;
+        prev->size += md->size + next->size + 2*METADATA_SIZE;
+        memcpy(prev+1, md+1, md->size);
+        return split_block(prev, size);
+    }
+    else {
+        void *new_ptr = smalloc(size);
+        if (NULL == new_ptr)
+            return NULL;
+        memcpy(new_ptr, oldp, md->size);
+        sfree(oldp);
+        return new_ptr;
+    }
 }
 
 void sfree(void* p){
     MallocMetadata metadata=((MallocMetadata)p)-1;
-
     assert(!metadata->is_free);
     metadata->is_free=true;
     num_free_blocks++;
@@ -102,10 +135,24 @@ void* allocate_new_block(size_t size, MallocMetadata prev){
         head = metadata;
     num_allocated_blocks++;
     num_allocated_bytes+=size;
-    num_meta_data_bytes+=METADATA_SIZE;
+    num_meta_data_bytes+=_size_meta_data();
     if(prev != NULL){
         prev->next = metadata;
     }
+    return (void*)(metadata+1);
+}
+
+void* change_wilderness_block(size_t size, MallocMetadata prev){
+    MallocMetadata metadata;
+    size_t toAdd = size - prev->size;
+    void* ptr = sbrk(toAdd);
+    if(ptr == (void*)-1){
+        return NULL;
+    }
+    metadata = prev;
+    metadata->size=size;
+    metadata->is_free=false;
+    num_allocated_bytes+=toAdd;
     return (void*)(metadata+1);
 }
 
@@ -139,23 +186,49 @@ void coalesce_blocks(MallocMetadata left, MallocMetadata right){
 }
 
 size_t _num_free_blocks(){
-    return num_free_blocks;
+    MallocMetadata current = head;
+    size_t count = 0;
+    while (NULL != current){
+        if (current->is_free)
+            count++;
+        current = current->next;
+    }
+    return count;
 }
 
 size_t _num_free_bytes(){
-    return num_free_bytes;
+    MallocMetadata current = head;
+    size_t count = 0;
+    while (NULL != current){
+        if (current->is_free)
+            count += current->size;
+        current = current->next;
+    }
+    return count;
 }
 
 size_t _num_allocated_blocks(){
-    return num_allocated_blocks;
+    MallocMetadata current = head;
+    size_t count = 0;
+    while (NULL != current){
+        count++;
+        current = current->next;
+    }
+    return count;
 }
 
 size_t _num_allocated_bytes(){
-    return num_allocated_bytes;
+    MallocMetadata current = head;
+    size_t count = 0;
+    while (NULL != current){
+        count += current->size;
+        current = current->next;
+    }
+    return count;
 }
 
 size_t _num_metadata_bytes(){
-    return num_meta_data_bytes;
+    return _num_allocated_blocks()*METADATA_SIZE;
 }
 
 size_t _size_meta_data(){
