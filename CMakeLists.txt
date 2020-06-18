@@ -3,4 +3,4 @@ project(OS4_Memory)
 
 set(CMAKE_CXX_STANDARD 11)
 
-add_executable(OS4_Memory main.cpp malloc_3.cpp)
+add_executable(OS4_Memory main.cpp malloc_3.cpp malloc_4.cpp)

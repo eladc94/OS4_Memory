@@ -103,5 +103,15 @@ int main() {
     assert(_num_free_blocks() == 1);
     assert(_num_free_bytes() == 1132);
     assert(_num_metadata_bytes() == SIZE);
+    char* char_test =(char*) smalloc(132096);
+    assert(_num_allocated_blocks() == 2);
+    assert(_num_allocated_bytes() == (1132 + 132096));
+    assert(_num_metadata_bytes() == 2*SIZE);
+    srealloc(char_test,140000);
+    assert(_num_allocated_blocks() == 2);
+    assert(_num_allocated_bytes() == (1132 + 140000));
+    assert(_num_metadata_bytes() == 2*SIZE);
+    sfree(char_test);
+
     return 0;
 }

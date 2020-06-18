@@ -1,25 +1,35 @@
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
-#include "malloc.h"
 
 
-struct MallocMetadata_t {
+typedef struct MallocMetadata_t {
     size_t size;
     bool is_free;
     MallocMetadata_t* next;
     MallocMetadata_t* prev;
-};
+}*MallocMetadata;
 
 static MallocMetadata head = NULL;
 const size_t METADATA_SIZE=sizeof(MallocMetadata_t);
 
+const size_t MAX_SIZE=100000000;
+typedef struct MallocMetadata_t *MallocMetadata;
+void* smalloc(size_t size);
+void* scalloc(size_t num,size_t size);
+void* srealloc(void* old,size_t size);
+void sfree(void* p);
+size_t _num_free_blocks();
+size_t _num_free_bytes();
+size_t _num_allocated_blocks();
+size_t _num_allocated_bytes();
+size_t _num_metadata_bytes();
+size_t _size_meta_data();
 static void* allocate_new_block(size_t size, MallocMetadata prev);
 
 void* smalloc(size_t size) {
     if (size == 0 || size > MAX_SIZE)
         return NULL;
-    MallocMetadata metadata;
     if (head == NULL) {
         return allocate_new_block(size, NULL);
     }

@@ -6,7 +6,7 @@
 
 typedef struct MallocMetadata_t {
     size_t size;
-    bool is_free;
+    long is_free;
     MallocMetadata_t* next;
     MallocMetadata_t* prev;
 }*MallocMetadata;
@@ -39,6 +39,8 @@ static void coalesce_blocks(MallocMetadata left,MallocMetadata right);
 
 
 void* smalloc(size_t size) {
+    if(size%8 != 0)
+        size = size + (8-size%8);
     if (size == 0 || size > MAX_SIZE)
         return NULL;
     if(size >= MIN_MMAP_SIZE){
@@ -76,6 +78,8 @@ void* scalloc(size_t num, size_t size){
 }
 
 void* srealloc(void* oldp, size_t size){
+    if(size%8 != 0)
+        size = size + (8-size%8);
     if (NULL == oldp)
         return smalloc(size);
     if(size >= MIN_MMAP_SIZE){
@@ -147,7 +151,7 @@ void sfree(void* p){
 
 void* new_mmap_node(size_t size){
     MallocMetadata ptr =(MallocMetadata)mmap(NULL,size+METADATA_SIZE,PROT_READ|PROT_WRITE,
-            MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
+                                             MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
     ptr->size=size;
     ptr->is_free=false;
     ptr->next=NULL;
