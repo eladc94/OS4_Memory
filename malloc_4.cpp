@@ -133,10 +133,16 @@ void sfree(void* p){
     MallocMetadata metadata=((MallocMetadata)p)-1;
     assert(!metadata->is_free);
     if(metadata->size>=MIN_MMAP_SIZE){
-        if(metadata->prev == NULL)
-            mmap_head=metadata->next;
+        if(metadata->prev == NULL) {
+            mmap_head = metadata->next;
+            if(metadata->next != NULL){
+                metadata->next->prev = NULL;
+            }
+        }
         else{
             metadata->prev->next=metadata->next;
+            if(metadata->next != NULL)
+                metadata->next->prev = metadata->prev;
         }
         int error_check = munmap((void*)(metadata),metadata->size+METADATA_SIZE);
         assert(error_check == 0);
