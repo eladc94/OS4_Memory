@@ -79,8 +79,15 @@ void* srealloc(void* oldp, size_t size){
     if (NULL == oldp)
         return smalloc(size);
     if(size >= MIN_MMAP_SIZE){
+        void* ptr = smalloc(size);
+        MallocMetadata new_md = (MallocMetadata)ptr-1;
+        MallocMetadata old_md = (MallocMetadata)oldp-1;
+        if(old_md->size < new_md->size)
+            memcpy(ptr,oldp,old_md->size);
+        else
+            memcpy(ptr,oldp,new_md->size);
         sfree(oldp);
-        return smalloc(size);
+        return ptr;
     }
     MallocMetadata md = (MallocMetadata)oldp-1;
     if(md->size >= size){
