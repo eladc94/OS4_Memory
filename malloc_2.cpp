@@ -68,7 +68,7 @@ void* srealloc(void* oldp, size_t size){
     void* new_ptr = smalloc(size);
     if (NULL == new_ptr)
         return NULL;
-    memcpy(new_ptr, oldp, md->size);
+    memmove(new_ptr, oldp, md->size);
     sfree(oldp);
     return new_ptr;
 }
@@ -140,7 +140,7 @@ size_t _num_allocated_bytes(){
     return count;
 }
 
-size_t _num_metadata_bytes(){
+size_t _num_meta_data_bytes(){
     return _num_allocated_blocks()*METADATA_SIZE;
 }
 

@@ -39,10 +39,10 @@ static void coalesce_blocks(MallocMetadata left,MallocMetadata right);
 
 
 void* smalloc(size_t size) {
-    if(size%8 != 0)
-        size = size + (8-size%8);
     if (size == 0 || size > MAX_SIZE)
         return NULL;
+    if(size%8 != 0)
+        size += (8-size%8);
     if(size >= MIN_MMAP_SIZE){
         return new_mmap_node(size);
     }
@@ -58,7 +58,7 @@ void* smalloc(size_t size) {
             continue;
         }
         assert((current->is_free) && (current->size >= size));
-        if(current->size > (size+METADATA_SIZE+MIN_SPLIT))
+        if(current->size >= (size+METADATA_SIZE+MIN_SPLIT))
             return split_block(current,size);
         current->is_free = false;
         return (void *) (current + 1);
@@ -79,7 +79,7 @@ void* scalloc(size_t num, size_t size){
 
 void* srealloc(void* oldp, size_t size){
     if(size%8 != 0)
-        size = size + (8-size%8);
+        size += (8-size%8);
     if (NULL == oldp)
         return smalloc(size);
     if(size >= MIN_MMAP_SIZE){
@@ -87,26 +87,29 @@ void* srealloc(void* oldp, size_t size){
         MallocMetadata new_md = (MallocMetadata)ptr-1;
         MallocMetadata old_md = (MallocMetadata)oldp-1;
         if(old_md->size < new_md->size)
-            memcpy(ptr,oldp,old_md->size);
+            memmove(ptr,oldp,old_md->size);
         else
-            memcpy(ptr,oldp,new_md->size);
+            memmove(ptr,oldp,new_md->size);
         sfree(oldp);
         return ptr;
     }
     MallocMetadata md = (MallocMetadata)oldp-1;
     if(md->size >= size){
         md->is_free = false;
-        return split_block(md, size);
+        if (md->size - size >= MIN_SPLIT+METADATA_SIZE)
+            return split_block(md, size);
+        else
+            return oldp;
     }
     else if(md->next == NULL){
         return change_wilderness_block(size, md);
     }
-    else if(md->prev != NULL && md->prev->is_free && (md->prev->size+md->size+METADATA_SIZE >= size)){
+    else if(md->prev != NULL && md->prev->is_free && (md->prev->size + md->size+METADATA_SIZE >= size)){
         MallocMetadata prev = md->prev;
         prev->next = md->next;
         prev->is_free = false;
         prev->size += md->size+METADATA_SIZE;
-        memcpy(prev+1, md+1, md->size);
+        memmove(prev+1, md+1, md->size);
         return split_block(prev, size);
     }
     else if(md->next != NULL && md->next->is_free && (md->next->size+md->size+METADATA_SIZE >= size)){
@@ -123,14 +126,14 @@ void* srealloc(void* oldp, size_t size){
         prev->next = next->next;
         prev->is_free = false;
         prev->size += md->size + next->size + 2*METADATA_SIZE;
-        memcpy(prev+1, md+1, md->size);
+        memmove(prev+1, md+1, md->size);
         return split_block(prev, size);
     }
     else {
         void *new_ptr = smalloc(size);
         if (NULL == new_ptr)
             return NULL;
-        memcpy(new_ptr, oldp, md->size);
+        memmove(new_ptr, oldp, md->size);
         sfree(oldp);
         return new_ptr;
     }
@@ -141,16 +144,15 @@ void sfree(void* p){
     assert(!metadata->is_free);
     if(metadata->size>=MIN_MMAP_SIZE){
         if(metadata->prev == NULL) {
-            mmap_head = metadata->next;
-            if(metadata->next != NULL){
+            if (metadata->next != NULL)
                 metadata->next->prev = NULL;
-            }
+            mmap_head = metadata->next;
         }
         else{
             metadata->prev->next=metadata->next;
-            if(metadata->next != NULL)
-                metadata->next->prev = metadata->prev;
         }
+        if(metadata->next != NULL)
+            metadata->next->prev = metadata->prev;
         int error_check = munmap((void*)(metadata),metadata->size+METADATA_SIZE);
         assert(error_check == 0);
         return;
@@ -176,7 +178,7 @@ void* new_mmap_node(size_t size){
     MallocMetadata current = mmap_head;
     MallocMetadata prev = NULL;
     while(current != NULL){
-        prev = current->prev;
+        prev = current;
         current = current->next;
     }
     prev->next=ptr;
@@ -217,6 +219,8 @@ void* change_wilderness_block(size_t size, MallocMetadata prev){
 }
 
 void* split_block(MallocMetadata current, size_t size){
+    if(current->size < size + METADATA_SIZE + MIN_SPLIT)
+        return (void*)(current+1);
     size_t start_size = current->size;
     MallocMetadata temp_next = current->next;
     current->size = size;
@@ -292,7 +296,7 @@ size_t _num_allocated_bytes(){
     return count;
 }
 
-size_t _num_metadata_bytes(){
+size_t _num_meta_data_bytes(){
     return _num_allocated_blocks()*METADATA_SIZE;
 }
 
