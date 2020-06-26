@@ -232,6 +232,8 @@ void* split_block(MallocMetadata current, size_t size){
     current->next = new_metadata;
     new_metadata->prev = current;
     new_metadata->next = temp_next;
+    if(temp_next != NULL)
+        temp_next->prev == new_metadata;
     return (void*)(current+1);
 }
 
@@ -242,6 +244,8 @@ void coalesce_blocks(MallocMetadata left, MallocMetadata right){
     size_t new_size = left->size+right->size+METADATA_SIZE;
     left->next=right->next;
     left->size=new_size;
+    if(right->next != NULL)
+        right->next->prev = left;
 }
 
 size_t _num_free_blocks(){
