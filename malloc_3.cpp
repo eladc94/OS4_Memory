@@ -226,6 +226,7 @@ void* split_block(MallocMetadata current, size_t size){
     new_metadata->size= (start_size-size) - METADATA_SIZE;
     new_metadata->is_free = true;
     current->next = new_metadata;
+    temp_next->prev == new_metadata;
     new_metadata->prev = current;
     new_metadata->next = temp_next;
     return (void*)(current+1);
