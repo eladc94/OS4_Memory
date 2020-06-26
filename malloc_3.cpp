@@ -238,6 +238,8 @@ void coalesce_blocks(MallocMetadata left, MallocMetadata right){
     size_t new_size = left->size+right->size+METADATA_SIZE;
     left->next=right->next;
     left->size=new_size;
+    if(right->next != NULL)
+        right->next->prev = left;
 }
 
 size_t _num_free_blocks(){

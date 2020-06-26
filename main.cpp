@@ -1,294 +1,339 @@
-
-#include "smalloc.h"
+#include "malloc_3.cpp"
 #include <assert.h>
+#include <exception>
+#include <stdio.h>
 #include <iostream>
+#include <bits/stdc++.h>
 
-void malloc2_test_01() {
+#define TESTS_MAX_SIZE 100000000
+#define TESTS_MIN_SPLIT 128
+#define TESTS_BYTES_PER_KB 1024
+#define TESTS_MMAP_MIN_SIZE 128*TESTS_BYTES_PER_KB
 
-    // malloc
-    int *ten = (int *) smalloc(sizeof(int) * 10);
-    assert(ten);
-    for (int i = 0; i < 10; i++) {
-        ten[i] = 10;
-    }
-    int *five = (int *) smalloc(sizeof(int) * 5);
-    assert(five);
-    for (int i = 0; i < 5; i++) {
-        five[i] = 5;
-    }
 
-    for (int i = 0; i < 10; i++) {
-        assert(ten[i] == 10);
-    }
-    for (int i = 0; i < 5; i++) {
-        assert(five[i] == 5);
-    }
-
-    // calloc
-    int *three = (int *) scalloc(3, sizeof(int));
-    assert(three);
-    for (int i = 0; i < 3; i++) {
-        assert(three[i] == 0);
-    }
-
-    // helpers
+void smalloc_tests() {
+    //Basics
+    int *p1, *p2, *p3, *p4, *p5, *p6;
+    int size1 = 256;
+    int size2 = 4096;
+    int size3 = 2 * TESTS_MMAP_MIN_SIZE;
+    p1 = (int *) smalloc(-1);
+    assert(p1 == NULL);
+    p1 = (int *) smalloc(TESTS_MAX_SIZE + 1);
+    assert(p1 == NULL);
+    p1 = (int *) smalloc(size1 * sizeof(int));
+    p2 = (int *) smalloc(size1 * sizeof(int));
+    assert(p1 && p2);
+    assert(p2 >= p1 + size1);
+    assert(_num_allocated_blocks() == 2);
+    assert(_num_allocated_bytes() == 2 * (size1 * sizeof(int)));
     assert(_num_free_blocks() == 0);
     assert(_num_free_bytes() == 0);
+
+
+    for (int i = 0; i < size1; i++)
+        p1[i] = i;
+
+    for (int i = 0; i < size1; i++)
+        assert(p1[i] == i);
+
+    //Challenge 1 split blocks
+    std::cout << "challenge 1 accepted!" << std::endl;
+    sfree(p1);
+    assert(_num_free_blocks() == 1);
+    assert(_num_free_bytes() == size1 * sizeof(int));
+    //shouldn't split
+    std::cout << "not yet" << std::endl;
+    p1 = (int *) smalloc(size1 * sizeof(int) - TESTS_MIN_SPLIT - _size_meta_data() + 1);
+    assert(p1 < p2);
+    assert(_num_allocated_blocks() == 2);
+    assert(_num_free_blocks() == 0);
+    assert(_num_free_bytes() == 0);
+    std::cout << "not yet" << std::endl;
+    sfree(p1);
+    assert(_num_free_blocks() == 1);
+    assert(_num_free_bytes() == size1 * sizeof(int));
+    //should split
+    p1 = (int *) smalloc(size1 * sizeof(int) - TESTS_MIN_SPLIT - _size_meta_data());
+    assert(p1 < p2);
     assert(_num_allocated_blocks() == 3);
-    assert(_num_allocated_bytes() == sizeof(int) * 18);
-    assert(_num_meta_data_bytes() == _size_meta_data() * 3);
-
-    // realloc
-    int *ninety = (int *) srealloc(ten, sizeof(int) * 90);
-    for (int i = 0; i < 90; i++) {
-        ninety[i] = 90;
-    }
-    assert(ninety);
     assert(_num_free_blocks() == 1);
-    assert(_num_free_bytes() == sizeof(int) * 10);
-    assert(_num_allocated_blocks() == 4);
-    assert(_num_allocated_bytes() == sizeof(int) * 108);
-    assert(_num_meta_data_bytes() == _size_meta_data() * 4);
+    assert(_num_free_bytes() == TESTS_MIN_SPLIT);
+    std::cout << "challenge 1 completed!" << std::endl;
 
-    int *sixty = (int *) srealloc(NULL, sizeof(int) * 60);
-    assert(sixty);
-    assert(_num_free_blocks() == 1);
-    assert(_num_free_bytes() == sizeof(int) * 10);
+    //Challenge 2 Merge blocks
+    std::cout << "challenge 2 accepted!" << std::endl;
+    sfree(p1);
+    sfree(p2);
+    assert(_num_free_blocks() <= 1);
+
+    assert(_num_free_bytes() == 2 * (size1 * sizeof(int)) + _size_meta_data() ||
+           _num_free_bytes() == 0);    //Allowing reducing the heap.
+
+
+    p1 = (int *) smalloc(size2);
+    p2 = (int *) smalloc(size2);
+    p3 = (int *) smalloc(size2);
+    p4 = (int *) smalloc(size2);
+    p5 = (int *) smalloc(size2);
+
+    assert(p1 && p2 && p3 && p4 && p5);
+
     assert(_num_allocated_blocks() == 5);
-    assert(_num_allocated_bytes() == sizeof(int) * 168);
-    assert(_num_meta_data_bytes() == _size_meta_data() * 5);
-
-    // order so far: ten(freed), five, three, ninety, sixty
-    // free & malloc
-    sfree(ninety);
-    int *eleven = (int *) smalloc(sizeof(int) * 11);
-    assert(eleven == ninety);
-    for (int i = 0; i < 11; i++) {
-        eleven[i] = 11;
-    }
-    for (int i = 11; i < 90; i++) {
-        assert(ninety[i] == 90);
-    }
-
-    // order so far: ten(freed), five, three, ninety(eleven), sixty
-    assert(_num_free_blocks() == 1);
-    assert(_num_free_bytes() == sizeof(int) * 10);
-    assert(_num_allocated_blocks() == 5);
-    assert(_num_allocated_bytes() == sizeof(int) * 168);
-    assert(_num_meta_data_bytes() == _size_meta_data() * 5);
-
-}
-void malloc3_test_01() {
-
-    char *first = (char *) smalloc(150);
-    assert(first);
-    char *second = (char *) smalloc(150);
-    assert(second);
-    char* third = (char *) smalloc(150);
-    assert(third);
+    assert(_num_allocated_bytes() == _num_allocated_blocks() * size2);
     assert(_num_free_blocks() == 0);
     assert(_num_free_bytes() == 0);
-    assert(_num_allocated_blocks() == 3);
-    assert(_num_allocated_bytes() == 450);
-    sfree(first);
-    assert(_num_free_blocks() == 1);
-    assert(_num_free_bytes() == 150);
-    sfree(third);
+
+    sfree(p2);
+    sfree(p4);
     assert(_num_free_blocks() == 2);
-    assert(_num_free_bytes() == 300);
-    assert(_num_allocated_blocks() == 3);
-    sfree(second);
-    assert(_num_free_blocks() == 1);
-    assert(_num_free_bytes() == 450+(2*_size_meta_data()));
-    assert(_num_allocated_blocks() == 1);
-    first = (char *) smalloc(200);
-    assert(first);
-    assert(_num_free_blocks() == 1);
-    assert(_num_allocated_blocks() == 2);
-    assert(_num_free_bytes() == 250+_size_meta_data());
-    third=(char *) smalloc(400);                //wilder
-    assert(third);
-    assert(_num_free_blocks() == 0);
-    assert(_num_allocated_blocks() == 2);
-    assert(_num_free_bytes() == 0);
-    sfree(third);
-    assert(_num_free_blocks() == 1);
-    assert(_num_allocated_blocks() == 2);
-    assert(_num_free_bytes() == 400);
-    second=(char *) smalloc(250);
-    assert(second);
-    assert(_num_free_blocks() == 0);
-    assert(_num_allocated_blocks() == 2);
-    assert(_num_free_bytes() == 0);
-    third=(char *) smalloc(320);
-    assert(third);
-    assert(_num_free_blocks() == 0);
-    assert(_num_allocated_blocks() == 3);
-    assert(_num_allocated_bytes() == 920);
-    sfree(second);
-    sfree(third);
-    assert(_num_free_blocks() == 1);
-    assert(_num_allocated_blocks() == 2);
-    assert(_num_free_bytes() == 720+_size_meta_data());
-    assert(_num_allocated_bytes() == 920+_size_meta_data());
-    sfree(first);
-    assert(_num_free_blocks() == 1);
-    assert(_num_allocated_blocks() == 1);
-    assert(_num_free_bytes() == 920+ 2*_size_meta_data());
-    assert(_num_allocated_bytes() == 920+2*_size_meta_data());
-    //////////////////////////////////////////////////  mmap time!!///////////////////////////////
-    char *first_mmap = (char *) smalloc(150000);
-    assert(first_mmap);
-    assert(_num_free_blocks() == 1);
-    assert(_num_allocated_blocks() == 2);
-    assert(_num_allocated_bytes() == 920+2*_size_meta_data()+150000);
-    sfree(first_mmap);
-    assert(_num_free_blocks() == 1);
-    assert(_num_allocated_blocks() == 1);
-    assert(_num_allocated_bytes() == 920+2*_size_meta_data());
-    first_mmap = (char *) smalloc(150000);
-    assert(first_mmap);
-    assert(_num_free_blocks() == 1);
-    assert(_num_allocated_blocks() == 2);
-    assert(_num_allocated_bytes() == 920+2*_size_meta_data()+150000);
-    char *second_mmap = (char *) smalloc(150000);
-    assert(second_mmap);
+    assert(_num_free_bytes() == 2 * size2);
+
+    sfree(p3);
     assert(_num_free_blocks() == 1);
     assert(_num_allocated_blocks() == 3);
-    assert(_num_allocated_bytes() == 920+2*_size_meta_data()+300000);
-    char *third_mmap = (char *) smalloc(150000);
-    assert(third_mmap);
+    assert(_num_free_bytes() == 3 * size2 + 2 * _size_meta_data());
+
+
+    sfree(p1);
+    assert(_num_allocated_blocks() == 2);
     assert(_num_free_blocks() == 1);
-    assert(_num_allocated_blocks() == 4);
-    assert(_num_allocated_bytes() == 920+2*_size_meta_data()+450000);
-    sfree(third_mmap);
+    assert(_num_free_bytes() == 4 * size2 + 3 * _size_meta_data());
+
+    sfree(p5);
+    assert(_num_free_blocks() <= 1);
+
+    assert(_num_free_bytes() == 5 * (size2) + 4 * _size_meta_data() ||
+           _num_free_bytes() == 0);
+    std::cout << "challenge 2 completed!" << std::endl;
+
+    //Challenge 3 Wilderness
+    std::cout << "challenge 3 accepted!" << std::endl;
+
+    p1 = (int *) smalloc(size2);
+    p2 = (int *) smalloc(size2);
+    p3 = (int *) smalloc(size2);
+    p4 = (int *) smalloc(size2);
+    p5 = (int *) smalloc(size2);
+
+    sfree(p5);
+    p5 = (int *) smalloc(3 * size2);
+
+    p6 = (int *) smalloc(size2);
+
+    assert(p6 > p5);
+
+    assert(_num_allocated_bytes() == 8 * size2);
+
+    assert(_num_allocated_blocks() == 6);
+    std::cout << "challenge 3 completed!" << std::endl;
+    //Challenge 4 Large allocations
+    std::cout << "challenge 4 accepted!" << std::endl;
+
+    sfree(p1);
+    assert(_num_allocated_blocks() == 6);
     assert(_num_free_blocks() == 1);
-    assert(_num_allocated_blocks() == 3);
-    assert(_num_allocated_bytes() == 920+2*_size_meta_data()+300000);
-    char *forth_mmap = (char *) smalloc(200000);
-    assert(forth_mmap);
+    p1 = (int *) smalloc(size3);
+    assert(p1 != nullptr);
+    assert(_num_allocated_blocks() == 7);
     assert(_num_free_blocks() == 1);
-    assert(_num_allocated_blocks() == 4);
-    assert(_num_allocated_bytes() == 920+2*_size_meta_data()+500000);
-    sfree(first_mmap);
-    sfree(second_mmap);
-    sfree(forth_mmap);
-    assert(_num_allocated_bytes() == 920+2*_size_meta_data());
+
+    for (int i = 0; i < size3 / 4; i++)
+        p1[i] = i;
+
+    for (int i = 0; i < size3 / 4; i++)
+        assert(p1[i] == i);
+
+
+    sfree(p1);
+    sfree(p2);
+    sfree(p3);
+    sfree(p4);
+    sfree(p5);
+    sfree(p6);
+
+    assert(_num_free_blocks() == 1);
+
+    std::cout << "challenge 4 completed!" << std::endl;
 
 }
-void malloc3_test_02() {
-    if(_num_allocated_bytes() == 920+2*_size_meta_data()){
-        std::cout<<" WHY DONT YOU LISTEN?! RUN THIS FUNCTION ALONE! :) "<<std::endl;
-    }
-    assert(_num_allocated_bytes()  == 0);
-    char* first_sbrk =(char*) srealloc(nullptr, 100);
-    assert(first_sbrk);
-    assert(_num_free_blocks() == 0);
-    assert(_num_free_bytes() == 0);
-    assert(_num_allocated_blocks() == 1);
-    assert(_num_allocated_bytes() == 100);
-    sfree(first_sbrk);
-    assert(_num_free_blocks() == 1);
-    assert(_num_free_bytes() == 100);
-    first_sbrk =(char*) srealloc(nullptr, 150);
-    assert(first_sbrk);
-    assert(_num_free_blocks() == 0);
-    assert(_num_free_bytes() == 0);
-    assert(_num_allocated_blocks() == 1);
-    assert(_num_allocated_bytes() == 150);
-    sfree(first_sbrk);
-    assert(_num_free_blocks() == 1);
-    assert(_num_free_bytes() == 150);
-    first_sbrk =(char*) smalloc(150);
-    assert(first_sbrk);
-    assert(_num_free_blocks() == 0);
-    assert(_num_free_bytes() == 0);
-    assert(_num_allocated_blocks() == 1);
-    assert(_num_allocated_bytes() == 150);
-    char *second_sbrk =(char*) smalloc(100);
-    assert(second_sbrk);
-    char *third_sbrk =(char*) smalloc(50);
-    assert(third_sbrk);
-    assert(_num_free_blocks() == 0);
-    assert(_num_free_bytes() == 0);
+
+void srealloc_tests() {
+    size_t size = _num_free_bytes();
+    unsigned int num = size / sizeof(int);
+    int *left, *middle, *right;
+    int *temp;
+    int *p1, *p2, *p3;
+
+    left = (int *) scalloc(num, sizeof(int));
+    middle = (int *) scalloc(num, sizeof(int));
+    right = (int *) scalloc(num, sizeof(int));
+
     assert(_num_allocated_blocks() == 3);
-    assert(_num_allocated_bytes() == 300);
-    char *forth_sbrk =(char*) srealloc(second_sbrk,120);
-    assert(forth_sbrk);
-    assert(_num_free_blocks() == 1);
-    assert(_num_free_bytes() == 100);
-    assert(_num_allocated_blocks() == 4);
-    char *check_sbrk=(char*) srealloc(first_sbrk,120);
-    assert(check_sbrk==first_sbrk);
-    second_sbrk =(char*) smalloc(80);
-    assert(second_sbrk);
-    printf("%d\n", _num_free_blocks());
-    printf("%d\n", _num_free_bytes());
     assert(_num_free_blocks() == 0);
-    assert(_num_free_bytes() == 0);
-    assert(_num_allocated_blocks() == 4);
-    sfree(third_sbrk);
-    assert(_num_free_bytes() == 50);
-    forth_sbrk=(char*) srealloc(forth_sbrk,160);
-    assert(forth_sbrk);
-    assert(_num_free_bytes() == 50);
-    assert(_num_allocated_blocks() == 4);
-    sfree(first_sbrk);
+    for (int i = 0; i < num; i++) {
+        assert(left[i] == 0);
+        assert(middle[i] == 0);
+        assert(right[i] == 0);
+    }
+
+    sfree(left);
+    sfree(right);
+    assert(_num_allocated_blocks() == 3);
     assert(_num_free_blocks() == 2);
-    assert(_num_free_bytes() == 200);
-    first_sbrk= (char*) srealloc(second_sbrk,290);
-    assert(first_sbrk);
-    assert(_num_allocated_blocks() == 2);
-    assert(_num_free_blocks() == 0);
-    third_sbrk=(char*) smalloc(120);
-    assert(third_sbrk);
-    char * fifth_sbrk=(char*) smalloc(50);
-    sfree(fifth_sbrk);
-    sfree(forth_sbrk);
-    second_sbrk=(char*) srealloc(third_sbrk,220);
-    assert(_num_allocated_blocks() == 3);
-    second_sbrk=(char*) srealloc(second_sbrk,340);
-    assert(_num_allocated_blocks() == 2);
-    third_sbrk= (char*) smalloc(50);
-    forth_sbrk= (char*) smalloc(240);
-    sfree(first_sbrk);
-    sfree(forth_sbrk);
-    third_sbrk=(char*) srealloc(third_sbrk,90);
-    assert(_num_allocated_blocks() == 4);
-    third_sbrk=(char*) srealloc(third_sbrk,350);
-    assert(_num_allocated_blocks() == 3);
-    //////////////////////////////////////////////////  mmap time!!////////////////////////////
 
-
-}
-void malloc3_test_03(){
-    if(_num_allocated_bytes() >0){
-        std::cout<<" WHY DONT YOU LISTEN?! RUN THIS FUNCTION ALONE! :) "<<std::endl;
+    for (unsigned int i = 0; i < num; i++) {
+        middle[i] = i;
     }
-    assert(_num_allocated_bytes()  == 0);
-    char *first_mmap = (char *) smalloc(150000);
-    assert(first_mmap);
-    assert(_num_free_blocks() == 0);
-    char *second_mmap = (char *) smalloc(150000);
-    assert(first_mmap);
-    second_mmap=(char *) srealloc(second_mmap,200000);
-    assert(_num_allocated_bytes()==350000);
-    second_mmap=(char *) srealloc(second_mmap,140000);
-    assert(_num_allocated_bytes()==290000);
-    sfree(first_mmap);
 
+    //1.a
+    temp = (int *) srealloc(middle, size);
+    assert(temp == middle);
+
+    //1.b
+    temp = (int *) srealloc(middle, 2 * size + _size_meta_data());
+    assert(_num_allocated_blocks() == 2);
+    assert(_num_free_blocks() == 1);
+    assert(temp == left);
+    for (unsigned int i = 0; i < num; i++) {
+        assert(temp[i] == i);
+    }
+
+    //1.c
+
+    temp = (int *) srealloc(temp, 3 * size + 2 * _size_meta_data());
+    assert(temp == left);
+    assert(_num_allocated_blocks() == 1);
+    assert(_num_free_blocks() == 0);
+
+    for (unsigned int i = 0; i < num; i++) {
+        assert(temp[i] == i);
+    }
+
+    sfree(temp);
+    assert(_num_allocated_blocks() == 1);
+    assert(_num_free_blocks() == 1);
+
+    left = (int *) scalloc(num, sizeof(int));
+    middle = (int *) scalloc(num, sizeof(int));
+    right = (int *) scalloc(num, sizeof(int));
+
+    for (unsigned int i = 0; i < num; i++) {
+        middle[i] = i;
+    }
+    sfree(left);
+    sfree(right);
+
+    //1.d
+    temp = (int *) srealloc(middle, 3 * size + 2 * _size_meta_data());
+
+    assert(_num_allocated_blocks() == 1);
+    assert(_num_free_blocks() == 0);
+    assert(temp == left);
+    for (unsigned int i = 0; i < num; i++) {
+        assert(temp[i] == i);
+    }
+
+    sfree(temp);
+    assert(_num_allocated_blocks() == 1);
+    assert(_num_free_blocks() == 1);
+
+
+    //1.e
+    left = (int *) scalloc(num, sizeof(int));
+    middle = (int *) scalloc(num, sizeof(int));
+    right = (int *) scalloc(num, sizeof(int));
+
+    for (unsigned int i = 0; i < num; i++) {
+        middle[i] = i;
+    }
+
+    temp = (int *) srealloc(middle, 3 * size + 2 * _size_meta_data());
+    assert(right < temp);
+    for (unsigned int i = 0; i < num; i++) {
+        assert(temp[i] == i);
+    }
+    assert(_num_allocated_blocks() == 4);
+    assert(_num_free_blocks() == 1);
+
+
+    sfree(left);
+    sfree(temp);
+    assert(_num_allocated_blocks() == 3);
+    assert(_num_free_blocks() == 2);
+
+    //1.b edgy
+    for (unsigned int i = 0; i < num; i++) {
+        right[i] = i;
+    }
+    temp = (int *) srealloc(right, 2 * size + _size_meta_data());
+    assert(temp == left);
+    for (unsigned int i = 0; i < num; i++) {
+        assert(temp[i] == i);
+    }
+    assert(_num_allocated_blocks() == 3);
+    assert(_num_free_blocks() == 2);
+
+    sfree(temp);
+    assert(_num_allocated_blocks() == 2);
+    assert(_num_free_blocks() == 2);
+
+    //1.f
+    p1 = (int *) smalloc(3 * size + 2 * _size_meta_data());
+    p2 = (int *) smalloc(size);
+    p3 = (int *) smalloc(2 * size + _size_meta_data());
+    assert(_num_allocated_blocks() == 3);
+    assert(_num_free_blocks() == 0);
+
+    temp = (int *) srealloc(p2, 2 * size);
+
+    assert(_num_allocated_blocks() == 4);
+    assert(_num_free_blocks() == 1);
+
+
+    //check wilderness
+    sfree(p1);
+    int freeBytesBefore = _num_free_bytes();
+    int allocatedBytesBefore = _num_allocated_bytes();
+    p2 =(int*) srealloc(temp, 3 * size);
+    assert(_num_allocated_bytes() == allocatedBytesBefore + size);
+    assert(_num_free_bytes() == freeBytesBefore);
+    assert(p2 == temp);
+
+    sfree(p2);
+    sfree(p3);
+
+    assert(_num_allocated_blocks() == 1);
+    assert(_num_free_blocks() == 1);
+
+    // Verify not using metadata after copy
+    p1 = (int *) scalloc(num / 2, sizeof(int));
+    p2 = (int *) scalloc(num, sizeof(int));
+    for (unsigned int i = 0; i < num; i++) {
+        p2[i] = i;
+    }
+
+    assert(_num_allocated_blocks() == 3);
+    assert(_num_free_blocks() == 1);
+
+    sfree(p1);
+
+    p2 = (int *)srealloc(p2, size + 1);
+    assert(p2 == p1);
+    for (unsigned int i = 0; i < num; i++) {
+        assert(p2[i] == i);
+    }
 }
 
+void runTests() {
+    std::cout << "It's gonna be LEGEN... " << std::endl;
+    smalloc_tests();
+    std::cout << "wait for it..." << std::endl;
+    srealloc_tests();
+    std::cout << "DARY! LEGENDARY!" << std::endl;
+}
 
-int main(){
-
-    //malloc2_test_01();check it for malloc2 before this test
-
-    //malloc3_test_01();
-    //malloc3_test_02();
-    malloc3_test_03();
-    printf("end of test\n");
-
-
+int main() {
+    runTests();
     return 0;
 }
