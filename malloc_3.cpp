@@ -105,6 +105,8 @@ void* srealloc(void* oldp, size_t size){
         prev->next = md->next;
         prev->is_free = false;
         prev->size += md->size+METADATA_SIZE;
+        if(md->next != NULL)
+            md->next->prev = prev;
         memmove(prev+1, md+1, md->size);
         return split_block(prev, size);
     }
@@ -113,6 +115,8 @@ void* srealloc(void* oldp, size_t size){
         md->next = md->next->next;
         md->size += next->size+METADATA_SIZE;
         md->is_free = false;
+        if(next->next != NULL)
+            next->next->prev = md;
         return split_block(md, size);
     }
     else if(md->prev != NULL && md->next != NULL && md->prev->is_free && md->next->is_free &&
@@ -122,6 +126,8 @@ void* srealloc(void* oldp, size_t size){
         prev->next = next->next;
         prev->is_free = false;
         prev->size += md->size + next->size + 2*METADATA_SIZE;
+        if(next->next != NULL)
+            next->next->prev = prev;
         memmove(prev+1, md+1, md->size);
         return split_block(prev, size);
     }
@@ -229,7 +235,7 @@ void* split_block(MallocMetadata current, size_t size){
     new_metadata->prev = current;
     new_metadata->next = temp_next;
     if(temp_next != NULL)
-        temp_next->prev == new_metadata;
+        temp_next->prev = new_metadata;
     return (void*)(current+1);
 }
 
